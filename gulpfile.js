@@ -9,6 +9,10 @@ var source = require('vinyl-source-stream');
 
 var cssbeautify = require('gulp-cssbeautify');
 
+/*動かん
+var uglify = require('gulp-uglify');
+var plumber = require('gulp-plumber');
+*/
 
 gulp.task('typescript-compile',function(){
   //対象となるふぁいるを全指定
@@ -34,8 +38,18 @@ gulp.task('cssbeautify',function(){
   .pipe(gulp.dest('css'));
 });
 
+/*
+gulp.task('js.uglify',function(){
+  return gulp.src('./htdocs/scripts/script.js')
+  .pipe(plumber())
+  .pipe(uglify('script.min.js'))
+  .pipe(gulp.dest('./htdocs/scripts'));
+});
+*/
+
 gulp.task('watch',function(){
   gulp.watch('./htdocs/tsscripts/*.ts',['browserify']);
+  //gulp.watch('./htdocs/scripts/*.js',['js.uglify']);
   gulp.watch('./htdocs/css/main.css',['cssbeautify']);
 });
 
