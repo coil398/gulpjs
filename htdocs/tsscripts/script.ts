@@ -3,20 +3,18 @@
 window.onload = (e) => {
   // canvasエレメントを取得
     var c = document.getElementById('canvas');
-    c.width = 300;
-    c.height = 300;
+    c.width = 600;
+    c.height = 600;
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
 
-    // canvasを初期化する色を設定する
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //カリングを有効化
+    gl.enable(gl.CULL_FACE);
 
-    // canvasを初期化する際の深度を設定する
-    gl.clearDepth(1.0);
-
-    // canvasを初期化
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    //深度テスト
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
 
     // 頂点シェーダとフラグメントシェーダの生成
     var v_shader = create_shader('vs');
@@ -35,26 +33,16 @@ window.onload = (e) => {
     attStride[0] = 3;
     attStride[1] = 4;
 
+    var torus = torus(100,100,0.5,1);
     // モデル(頂点)データ
-    var position = [
-         0.0, 1.0, 0.0,
-         1.0, 0.0, 0.0,
-        -1.0, 0.0, 0.0,
-         0.0,-1.0, 0.0
-    ];
+    var position = torus[0];
 
     //頂点の色情報を格納する配列
-    var color = [
-      1.0,0.0,0.0,1.0,
-      0.0,1.0,0.0,1.0,
-      0.0,0.0,1.0,1.0,
-      1.0,1.0,1.0,1.0
-    ];
+    var color = torus[1];
 
-    var index = [
-      0,1,2,
-      1,2,3
-    ];
+    var index = torus[2];
+
+
 
     // VBOの生成
     var position_vbo = create_vbo(position);
@@ -87,7 +75,7 @@ window.onload = (e) => {
 
     // ビュー×プロジェクション座標変換行列
     m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
-    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+    m.perspective(100, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
 
     //カウンタを宣言
@@ -108,7 +96,8 @@ window.onload = (e) => {
 
           // モデル座標変換行列の生成(Y軸による回転)
           m.identity(mMatrix);
-          m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
+          m.translate(mMatrix,[0,0,0],mMatrix);
+          m.rotate(mMatrix, rad, [1,-1 ,1], mMatrix);
           m.multiply(tmpMatrix, mMatrix, mvpMatrix);
           gl.uniformMatrix4fv(uniLocation, false, mvpMatrix);
 
@@ -243,6 +232,52 @@ window.onload = (e) => {
 
         // 生成したIBOを返して終了
         return ibo;
+    }
+
+    function torus(row,column,irad,orad){
+      var pos = new Array(),col = new Array(),idx = new Array();
+      for(var i = 0;i <= row ; i++){
+        var r = Math.PI * 2 / row * i;
+        var rr = Math.cos(r);
+        var ry = Math.sin(r);
+        for(var ii = 0;ii<=column;ii++){
+          var tr = Math.PI * 2 / column * ii;
+          var tx = (rr * irad + orad) * Math.cos(tr);
+          var ty = ry * irad;
+          var tz = (rr * irad + orad) * Math.sin(tr);
+          pos.push(tx,ty,tz);
+          var tc = hsva(360 / column * ii,1,1,1);
+          col.push(tc[0],tc[1],tc[2],tc[3]);
+        }
+      }
+      for(i = 0;i<row;i++){
+        for(ii = 0;ii < column;ii++){
+          r = (column + 1) * i + ii;
+          idx.push(r,r + column + 1,r + 1);
+          idx.push(r + column + 1,r + column + 2,r + 1);
+        }
+      }
+      return [pos,col,idx];
+    }
+
+    function hsva(h,s,v,a){
+      if(s > 1 || v > 1 || a > 1){return;}
+      var th = h % 360;
+      var i = Math.floor(th / 60);
+      var f = th / 60 - i;
+      var m = v * (1 - s);
+      var n = v * (1 - s * f);
+      var k = v * (1 - s * (1 - f));
+      var color = new Array();
+      if(!s > 0 && !s < 0){
+        color.push(v,v,v,a);
+      }else{
+        var r = new Array(v,n,m,m,k,v);
+        var g = new Array(k,v,v,n,m,m);
+        var b = new Array(m,m,k,v,v,n);
+        color.push(r[i],g[i],b[i],a);
+      }
+      return color;
     }
 
 

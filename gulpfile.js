@@ -11,12 +11,13 @@ var cssbeautify = require('gulp-cssbeautify');
 
 /*動かん
 var uglify = require('gulp-uglify');
-var plumber = require('gulp-plumber');
 */
+var plumber = require('gulp-plumber');
 
 gulp.task('typescript-compile',function(){
   //対象となるふぁいるを全指定
   gulp.src(['./htdocs/tsscripts/*.ts'])
+  .pipe(plumber())
   .pipe(typescript({target:"ES5",removeComments:true,sortOutput:true}))
   //jsプロパティを参照
   .js
