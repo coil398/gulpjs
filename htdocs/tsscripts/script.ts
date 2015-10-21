@@ -24,31 +24,37 @@ window.onload = (e) => {
     var prg = create_program(v_shader, f_shader);
 
     // attributeLocationを配列に取得
-    var attLocation = new Array(2);
+    var attLocation = new Array();
     attLocation[0] = gl.getAttribLocation(prg,'position');
-    attLocation[1] = gl.getAttribLocation(prg,'color');
+    attLocation[1] = gl.getAttribLocation(prg,'normal');
+    attLocation[2] = gl.getAttribLocation(prg,'color');
 
     // attributeの要素数を配列に格納
-    var attStride = new Array(2);
+    var attStride = new Array();
     attStride[0] = 3;
-    attStride[1] = 4;
+    attStride[1] = 3;
+    attStride[2] = 4;
 
-    var torus = torus(100,100,0.5,1);
+    var torus = torus(32,32,1.0,2.0);
+
     // モデル(頂点)データ
     var position = torus[0];
 
+    //モデルの法線データ
+    var normal = torus[1];
+
     //頂点の色情報を格納する配列
-    var color = torus[1];
+    var color = torus[2];
 
-    var index = torus[2];
-
-
+    //頂点のインデックスを取得
+    var index = torus[3];
 
     // VBOの生成
     var position_vbo = create_vbo(position);
+    var normal_vbo = create_vbo(normal);
     var color_vbo = create_vbo(color);
 
-    var vbo = [position_vbo,color_vbo];
+    var vbo = [position_vbo,normal_vbo,color_vbo];
 
     //VBOを登録
     set_attribute(vbo,attLocation,attStride);
@@ -59,8 +65,11 @@ window.onload = (e) => {
     //IBOをバインドして登録する
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);
 
-    //uniformLocationの取得
-    var uniLocation = gl.getUniformLocation(prg,'mvpMatrix');
+    //uniformLocationの配列を取得
+    var uniLocation = new Array();
+    uniLocation[0] = gl.getUniformLocation(prg,'mvpMatrix');
+    uniLocation[1] = gl.getUniformLocation(prg,'invMatrix');
+    uniLocation[2] = gl.getUniformLocation(prg,'lightDirection');
 
     // minMatrix.js を用いた行列関連処理
     // matIVオブジェクトを生成
@@ -72,11 +81,15 @@ window.onload = (e) => {
     var pMatrix = m.identity(m.create());
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
+    var invMatrix = m.identity(m.create());
 
     // ビュー×プロジェクション座標変換行列
-    m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
-    m.perspective(100, c.width / c.height, 0.1, 100, pMatrix);
+    m.lookAt([0.0, 0.0, 20.0], [0, 0, 0], [0, 1, 0], vMatrix);
+    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
+
+    //平行光線の向き
+    var lightDirection = [-0.5,0.5,0.5];
 
     //カウンタを宣言
     var count = 0;
@@ -94,12 +107,18 @@ window.onload = (e) => {
           // カウンタを元にラジアンを算出
           var rad = (count % 360) * Math.PI / 180;
 
-          // モデル座標変換行列の生成(Y軸による回転)
+          // モデル座標変換行列の生成
           m.identity(mMatrix);
-          m.translate(mMatrix,[0,0,0],mMatrix);
           m.rotate(mMatrix, rad, [1,-1 ,1], mMatrix);
           m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-          gl.uniformMatrix4fv(uniLocation, false, mvpMatrix);
+
+          //モデル座標変換行列の逆行列
+          m.inverse(mMatrix,invMatrix);
+
+          //uniform変数の登録
+          gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+          gl.uniformMatrix4fv(uniLocation[1],false,invMatrix);
+          gl.uniform3fv(uniLocation[2],lightDirection);
 
           // インデックスを用いた描画命令
           gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
@@ -234,50 +253,56 @@ window.onload = (e) => {
         return ibo;
     }
 
-    function torus(row,column,irad,orad){
-      var pos = new Array(),col = new Array(),idx = new Array();
-      for(var i = 0;i <= row ; i++){
-        var r = Math.PI * 2 / row * i;
-        var rr = Math.cos(r);
-        var ry = Math.sin(r);
-        for(var ii = 0;ii<=column;ii++){
-          var tr = Math.PI * 2 / column * ii;
-          var tx = (rr * irad + orad) * Math.cos(tr);
-          var ty = ry * irad;
-          var tz = (rr * irad + orad) * Math.sin(tr);
-          pos.push(tx,ty,tz);
-          var tc = hsva(360 / column * ii,1,1,1);
-          col.push(tc[0],tc[1],tc[2],tc[3]);
+    // トーラスを生成する関数
+    function torus(row, column, irad, orad){
+        var pos = new Array(), nor = new Array(),
+            col = new Array(), idx = new Array();
+        for(var i = 0; i <= row; i++){
+            var r = Math.PI * 2 / row * i;
+            var rr = Math.cos(r);
+            var ry = Math.sin(r);
+            for(var ii = 0; ii <= column; ii++){
+                var tr = Math.PI * 2 / column * ii;
+                var tx = (rr * irad + orad) * Math.cos(tr);
+                var ty = ry * irad;
+                var tz = (rr * irad + orad) * Math.sin(tr);
+                var rx = rr * Math.cos(tr);
+                var rz = rr * Math.sin(tr);
+                pos.push(tx, ty, tz);
+                nor.push(rx, ry, rz);
+                var tc = hsva(360 / column * ii, 1, 1, 1);
+                col.push(tc[0], tc[1], tc[2], tc[3]);
+            }
         }
-      }
-      for(i = 0;i<row;i++){
-        for(ii = 0;ii < column;ii++){
-          r = (column + 1) * i + ii;
-          idx.push(r,r + column + 1,r + 1);
-          idx.push(r + column + 1,r + column + 2,r + 1);
+        for(i = 0; i < row; i++){
+            for(ii = 0; ii < column; ii++){
+                r = (column + 1) * i + ii;
+                idx.push(r, r + column + 1, r + 1);
+                idx.push(r + column + 1, r + column + 2, r + 1);
+            }
         }
-      }
-      return [pos,col,idx];
+        return [pos, nor, col, idx];
     }
 
-    function hsva(h,s,v,a){
-      if(s > 1 || v > 1 || a > 1){return;}
-      var th = h % 360;
-      var i = Math.floor(th / 60);
-      var f = th / 60 - i;
-      var m = v * (1 - s);
-      var n = v * (1 - s * f);
-      var k = v * (1 - s * (1 - f));
-      var color = new Array();
-      if(!s > 0 && !s < 0){
-        color.push(v,v,v,a);
-      }else{
-        var r = new Array(v,n,m,m,k,v);
-        var g = new Array(k,v,v,n,m,m);
-        var b = new Array(m,m,k,v,v,n);
-        color.push(r[i],g[i],b[i],a);
-      }
-      return color;
+    // HSVカラー取得用関数
+    function hsva(h, s, v, a){
+        if(s > 1 || v > 1 || a > 1){return;}
+        var th = h % 360;
+        var i = Math.floor(th / 60);
+        var f = th / 60 - i;
+        var m = v * (1 - s);
+        var n = v * (1 - s * f);
+        var k = v * (1 - s * (1 - f));
+        var color = new Array();
+        if(!s > 0 && !s < 0){
+            color.push(v, v, v, a);
+        } else {
+            var r = new Array(v, n, m, m, k, v);
+            var g = new Array(k, v, v, n, m, m);
+            var b = new Array(m, m, k, v, v, n);
+            color.push(r[i], g[i], b[i], a);
+        }
+        return color;
     }
 
 
