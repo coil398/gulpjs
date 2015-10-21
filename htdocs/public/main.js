@@ -35,7 +35,8 @@ window.onload = function (e) {
     uniLocation[0] = gl.getUniformLocation(prg, 'mvpMatrix');
     uniLocation[1] = gl.getUniformLocation(prg, 'invMatrix');
     uniLocation[2] = gl.getUniformLocation(prg, 'lightDirection');
-    uniLocation[3] = gl.getUniformLocation(prg, 'ambientColor');
+    uniLocation[3] = gl.getUniformLocation(prg, 'eyeDirection');
+    uniLocation[4] = gl.getUniformLocation(prg, 'ambientColor');
     var m = new matIV();
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
@@ -47,6 +48,7 @@ window.onload = function (e) {
     m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
     var lightDirection = [-0.5, 0.5, 0.5];
+    var eyeDirection = [0.0, 0.0, 20.0];
     var ambientColor = [0.1, 0.1, 0.1, 1.0];
     var count = 0;
     (function () {
@@ -62,7 +64,8 @@ window.onload = function (e) {
         gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
         gl.uniformMatrix4fv(uniLocation[1], false, invMatrix);
         gl.uniform3fv(uniLocation[2], lightDirection);
-        gl.uniform4fv(uniLocation[3], ambientColor);
+        gl.uniform3fv(uniLocation[3], eyeDirection);
+        gl.uniform4fv(uniLocation[4], ambientColor);
         gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
         gl.flush();
         setTimeout(arguments.callee, 1000 / 30);
