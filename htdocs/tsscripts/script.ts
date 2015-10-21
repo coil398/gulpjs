@@ -35,7 +35,7 @@ window.onload = (e) => {
     attStride[1] = 3;
     attStride[2] = 4;
 
-    var torus = torus(32,32,1.0,2.0);
+    var torus = torus(100,100,1.0,2.0);
 
     // モデル(頂点)データ
     var position = torus[0];
@@ -87,7 +87,7 @@ window.onload = (e) => {
 
     // ビュー×プロジェクション座標変換行列
     m.lookAt([0.0, 0.0, 20.0], [0, 0, 0], [0, 1, 0], vMatrix);
-    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+    m.perspective(30, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
 
     //平行光線の向き

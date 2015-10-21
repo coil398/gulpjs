@@ -19,7 +19,7 @@ window.onload = function (e) {
     attStride[0] = 3;
     attStride[1] = 3;
     attStride[2] = 4;
-    var torus = torus(32, 32, 1.0, 2.0);
+    var torus = torus(100, 100, 1.0, 2.0);
     var position = torus[0];
     var normal = torus[1];
     var color = torus[2];
@@ -45,7 +45,7 @@ window.onload = function (e) {
     var mvpMatrix = m.identity(m.create());
     var invMatrix = m.identity(m.create());
     m.lookAt([0.0, 0.0, 20.0], [0, 0, 0], [0, 1, 0], vMatrix);
-    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+    m.perspective(30, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
     var lightDirection = [-0.5, 0.5, 0.5];
     var eyeDirection = [0.0, 0.0, 20.0];
