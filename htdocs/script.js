@@ -1,3 +1,4 @@
+
 onload = function(){
     // canvasエレメントを取得
     var c = document.getElementById('canvas');
@@ -96,7 +97,7 @@ onload = function(){
     var texture = null;
 
     // テクスチャを生成
-    create_texture('../images/texture.png');
+    create_texture('texture.png');
 
     // カウンタの宣言
     var count = 0;
