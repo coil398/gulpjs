@@ -28,10 +28,10 @@ onload = function () {
         1.0, 1.0, 1.0, 1.0
     ];
     var textureCoord = [
-        0.0, 0.0,
-        1.0, 0.0,
-        0.0, 1.0,
-        1.0, 1.0
+        -0.75, -0.75,
+        1.75, -0.75,
+        1.75, -0.75,
+        1.75, 1.75
     ];
     var index = [
         0, 1, 2,
@@ -75,6 +75,10 @@ onload = function () {
         gl.uniform1i(uniLocation[1], 0);
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, texture1);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.uniform1i(uniLocation[2], 1);
         m.identity(mMatrix);
         m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
