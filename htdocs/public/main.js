@@ -46,7 +46,8 @@ onload = function () {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iIndex);
     var uniLocation = new Array();
     uniLocation[0] = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1] = gl.getUniformLocation(prg, 'texture');
+    uniLocation[1] = gl.getUniformLocation(prg, 'texture0');
+    uniLocation[2] = gl.getUniformLocation(prg, 'texture1');
     var m = new matIV();
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
@@ -58,9 +59,10 @@ onload = function () {
     m.multiply(pMatrix, vMatrix, tmpMatrix);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
-    gl.activeTexture(gl.TEXTURE0);
-    var texture = null;
-    create_texture('../images/texture.png');
+    var texture0 = null;
+    var texture1 = null;
+    create_texture('../images/texture.png', 0);
+    create_texture('../images/texture1.png', 1);
     var count = 0;
     (function () {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -68,8 +70,12 @@ onload = function () {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         count++;
         var rad = (count % 360) * Math.PI / 180;
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture0);
         gl.uniform1i(uniLocation[1], 0);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, texture1);
+        gl.uniform1i(uniLocation[2], 1);
         m.identity(mMatrix);
         m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
@@ -137,7 +143,7 @@ onload = function () {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         return ibo;
     }
-    function create_texture(source) {
+    function create_texture(source, number) {
         var img = new Image();
         img.onload = function () {
             var tex = gl.createTexture();
@@ -145,7 +151,14 @@ onload = function () {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
             gl.generateMipmap(gl.TEXTURE_2D);
             gl.bindTexture(gl.TEXTURE_2D, null);
-            texture = tex;
+            switch (number) {
+                case 0:
+                    texture0 = tex;
+                    break;
+                case 1:
+                    texture1 = tex;
+                    break;
+            }
         };
         img.src = source;
     }

@@ -70,7 +70,8 @@ onload = function(){
     // uniformLocationを配列に取得
     var uniLocation = new Array();
     uniLocation[0]  = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1]  = gl.getUniformLocation(prg, 'texture');
+    uniLocation[1]  = gl.getUniformLocation(prg, 'texture0');
+    uniLocation[2]  = gl.getUniformLocation(prg,'texture1');
 
     // 各種行列の生成と初期化
     var m = new matIV();
@@ -89,20 +90,19 @@ onload = function(){
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
 
-    // 有効にするテクスチャユニットを指定
-    gl.activeTexture(gl.TEXTURE0);
-
     // テクスチャ用変数の宣言
-    var texture = null;
+    var texture0 = null;
+    var texture1 = null;
 
     // テクスチャを生成
-    create_texture('../images/texture.png');
+    create_texture('../images/texture.png',0);
+    create_texture('../images/texture1.png',1);
 
     // カウンタの宣言
     var count = 0;
 
     // 恒常ループ
-    (function(){
+    (() => {
         // canvasを初期化
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
@@ -112,11 +112,15 @@ onload = function(){
         count++;
         var rad = (count % 360) * Math.PI / 180;
 
-        // テクスチャをバインドする
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        //テクスチャユニットを指定してバインドし登録する
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D,texture0);
+        gl.uniform1i(uniLocation[1],0);
 
-        // uniform変数にテクスチャを登録
-        gl.uniform1i(uniLocation[1], 0);
+        //テクスチャユニットを指定してバインドし登録する
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D,texture1);
+        gl.uniform1i(uniLocation[2],1);
 
         // モデル座標変換行列の生成
         m.identity(mMatrix);
@@ -258,7 +262,7 @@ onload = function(){
     }
 
     // テクスチャを生成する関数
-    function create_texture(source){
+    function create_texture(source,number){
         // イメージオブジェクトの生成
         var img = new Image();
 
@@ -279,8 +283,15 @@ onload = function(){
             // テクスチャのバインドを無効化
             gl.bindTexture(gl.TEXTURE_2D, null);
 
-            // 生成したテクスチャをグローバル変数に代入
-            texture = tex;
+            //生成したテクスチャを変数に代入
+            switch(number){
+              case 0:
+                texture0 = tex;
+                break;
+              case 1:
+                texture1 = tex;
+                break;
+            }
         };
 
         // イメージオブジェクトのソースを指定
