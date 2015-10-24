@@ -4,6 +4,10 @@ onload = function(){
     c.width = 500;
     c.height = 300;
 
+    var elmTransparency = document.getElementById('transparency');
+    var elmAdd          = document.getElementById('add');
+	  var elmRange        = document.getElementById('range');
+
     // webglコンテキストを取得
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
 
@@ -36,18 +40,18 @@ onload = function(){
 
     // 頂点色
     var color = [
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0
-    ];
+  		1.0, 0.0, 0.0, 1.0,
+  		0.0, 1.0, 0.0, 1.0,
+  		0.0, 0.0, 1.0, 1.0,
+  		1.0, 1.0, 1.0, 1.0
+  	];
 
     // テクスチャ座標
     var textureCoord = [
-        -0.75, -0.75,
-        1.75, -0.75,
-        1.75, -0.75,
-        1.75, 1.75
+        0.0, 0.0,
+        1.0, 0.0,
+        0.0, 1.0,
+        1.0, 1.0
     ];
 
     // 頂点インデックス
@@ -70,8 +74,9 @@ onload = function(){
     // uniformLocationを配列に取得
     var uniLocation = new Array();
     uniLocation[0]  = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1]  = gl.getUniformLocation(prg, 'texture0');
-    uniLocation[2]  = gl.getUniformLocation(prg,'texture1');
+    uniLocation[1]  = gl.getUniformLocation(prg,'vertexAlpha');
+    uniLocation[2]  = gl.getUniformLocation(prg, 'texture');
+    uniLocation[3]  = gl.getUniformLocation(prg,'useTexture');
 
     // 各種行列の生成と初期化
     var m = new matIV();
@@ -82,29 +87,37 @@ onload = function(){
     var mvpMatrix = m.identity(m.create());
 
     // ビュー×プロジェクション座標変換行列
-    m.lookAt([0.0, 2.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
+    m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
     m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
     m.multiply(pMatrix, vMatrix, tmpMatrix);
+
+    //カリング
+    //gl.enable(gl.CULL_FACE);
 
     // 深度テストを有効にする
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
 
     // テクスチャ用変数の宣言
-    var texture0 = null;
-    var texture1 = null;
+    var texture = null;
 
     // テクスチャを生成
-    create_texture('../images/texture.png',0);
-    create_texture('../images/texture1.png',1);
+    create_texture('../images/texture.png');
+    gl.activeTexture(gl.TEXTURE0);
 
     // カウンタの宣言
     var count = 0;
 
     // 恒常ループ
     (() => {
+
+        if(elmTransparency.checked){blend_type(0);}
+        if(elmAdd.checked){blend_type(1);}
+
+        var vertexAlpha = parseFloat(elmRange.value / 100);
+
         // canvasを初期化
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearColor(0.0, 0.75, 0.75, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -112,28 +125,42 @@ onload = function(){
         count++;
         var rad = (count % 360) * Math.PI / 180;
 
-        //テクスチャユニットを指定してバインドし登録する
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D,texture0);
-        gl.uniform1i(uniLocation[1],0);
-
-        //テクスチャユニットを指定してバインドし登録する
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D,texture1);
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAX_FILTER,gl.LINEAR_MIPMAP_LINEAR)
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-        gl.uniform1i(uniLocation[2],1);
-
         // モデル座標変換行列の生成
         m.identity(mMatrix);
+        m.translate(mMatrix,[0.25,0.25,-0.25],mMatrix);
         m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
 
+        //テクスチャのバインド
+        gl.bindTexture(gl.TEXTURE_2D,texture);
+
+        //ブレンディングを無効にする
+        gl.disable(gl.BLEND);
+
         // uniform変数の登録と描画
         gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+        gl.uniform1f(uniLocation[1],1.0);
+        gl.uniform1i(uniLocation[2],0);
+        gl.uniform1i(uniLocation[3],true);
         gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+
+        m.identity(mMatrix);
+        m.translate(mMatrix,[-0.25,-0.25,0.25],mMatrix);
+        m.rotate(mMatrix,rad,[0,0,1],mMatrix);
+        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
+
+        //テクスチャのバインドをかいじょ
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        //ブレンディングを有効にする
+        gl.enable(gl.BLEND);
+
+        //uniform変数の登録と描画
+        gl.uniformMatrix4fv(uniLocation[0],false,mvpMatrix);
+        gl.uniform1f(uniLocation[1],vertexAlpha);
+        gl.uniform1i(uniLocation[2],0);
+        gl.uniform1i(uniLocation[3],false);
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
         // コンテキストの再描画
         gl.flush();
@@ -266,7 +293,7 @@ onload = function(){
     }
 
     // テクスチャを生成する関数
-    function create_texture(source,number){
+    function create_texture(source){
         // イメージオブジェクトの生成
         var img = new Image();
 
@@ -288,18 +315,27 @@ onload = function(){
             gl.bindTexture(gl.TEXTURE_2D, null);
 
             //生成したテクスチャを変数に代入
-            switch(number){
-              case 0:
-                texture0 = tex;
-                break;
-              case 1:
-                texture1 = tex;
-                break;
-            }
+            texture = tex;
         };
 
         // イメージオブジェクトのソースを指定
         img.src = source;
     }
+
+    //ブレンドタイプを設定する関数
+    function blend_type(prm){
+		switch(prm){
+			// 騾城℃蜃ｦ逅
+			case 0:
+				gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+				break;
+			// 蜉邂怜粋謌
+			case 1:
+				gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+				break;
+			default:
+				break;
+		}
+	}
 
 };
