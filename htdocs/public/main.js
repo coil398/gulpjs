@@ -12,96 +12,67 @@ onload = function () {
     var prg = create_program(v_shader, f_shader);
     var attLocation = new Array();
     attLocation[0] = gl.getAttribLocation(prg, 'position');
-    attLocation[1] = gl.getAttribLocation(prg, 'color');
-    attLocation[2] = gl.getAttribLocation(prg, 'textureCoord');
+    attLocation[1] = gl.getAttribLocation(prg, 'normal');
+    attLocation[2] = gl.getAttribLocation(prg, 'color');
     var attStride = new Array();
     attStride[0] = 3;
-    attStride[1] = 4;
-    attStride[2] = 2;
-    var position = [
-        -1.0, 1.0, 0.0,
-        1.0, 1.0, 0.0,
-        -1.0, -1.0, 0.0,
-        1.0, -1.0, 0.0
-    ];
-    var color = [
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0
-    ];
-    var textureCoord = [
-        0.0, 0.0,
-        1.0, 0.0,
-        0.0, 1.0,
-        1.0, 1.0
-    ];
-    var index = [
-        0, 1, 2,
-        3, 2, 1
-    ];
-    var vPosition = create_vbo(position);
-    var vColor = create_vbo(color);
-    var vTextureCoord = create_vbo(textureCoord);
-    var VBOList = [vPosition, vColor, vTextureCoord];
-    var iIndex = create_ibo(index);
-    set_attribute(VBOList, attLocation, attStride);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iIndex);
+    attStride[1] = 3;
+    attStride[2] = 4;
+    var torusData = torus(64, 64, 0.5, 1.5);
+    var tPosition = create_vbo(torusData.p);
+    var tNormal = create_vbo(torusData.n);
+    var tColor = create_vbo(torusData.c);
+    var tVBOList = [tPosition, tNormal, tColor];
+    var tIndex = create_ibo(torusData.i);
+    set_attribute(tVBOList, attLocation, attStride);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tIndex);
     var uniLocation = new Array();
     uniLocation[0] = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1] = gl.getUniformLocation(prg, 'vertexAlpha');
-    uniLocation[2] = gl.getUniformLocation(prg, 'texture');
-    uniLocation[3] = gl.getUniformLocation(prg, 'useTexture');
+    uniLocation[1] = gl.getUniformLocation(prg, 'mMatrix');
+    uniLocation[2] = gl.getUniformLocation(prg, 'invMatrix');
+    uniLocation[3] = gl.getUniformLocation(prg, 'lightPosition');
+    uniLocation[4] = gl.getUniformLocation(prg, 'eyeDirection');
+    uniLocation[5] = gl.getUniformLocation(prg, 'ambientColor');
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
     var m = new matIV();
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
     var pMatrix = m.identity(m.create());
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
-    m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
-    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
-    m.multiply(pMatrix, vMatrix, tmpMatrix);
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-    var texture = null;
-    create_texture('../images/texture.png');
-    gl.activeTexture(gl.TEXTURE0);
+    var invMatrix = m.identity(m.create());
+    var q = new qtnIV();
+    var xQuaternion = q.identity(q.create());
+    var lightPosition = [15.0, 10.0, 15.0];
+    var ambientColor = [0.1, 0.1, 0.1, 1.0];
+    var camPosition = [0.0, 0.0, 10.0];
+    var camUpDirection = [0.0, 1.0, 0.0];
     var count = 0;
     (function () {
-        if (elmTransparency.checked) {
-            blend_type(0);
-        }
-        if (elmAdd.checked) {
-            blend_type(1);
-        }
-        var vertexAlpha = parseFloat(elmRange.value / 100);
-        gl.clearColor(0.0, 0.75, 0.75, 1.0);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         count++;
-        var rad = (count % 360) * Math.PI / 180;
+        var rad = (count % 180) * Math.PI / 90;
+        var rad2 = (count % 720) * Math.PI / 360;
+        q.rotate(rad2, [1, 0, 0], xQuaternion);
+        q.toVecIII([0.0, 0.0, 10.0], xQuaternion, camPosition);
+        q.toVecIII([0.0, 1.0, 0.0], xQuaternion, camUpDirection);
+        m.lookAt(camPosition, [0, 0, 0], camUpDirection, vMatrix);
+        m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+        m.multiply(pMatrix, vMatrix, tmpMatrix);
         m.identity(mMatrix);
-        m.translate(mMatrix, [0.25, 0.25, -0.25], mMatrix);
         m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.disable(gl.BLEND);
+        m.inverse(mMatrix, invMatrix);
         gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniform1f(uniLocation[1], 1.0);
-        gl.uniform1i(uniLocation[2], 0);
-        gl.uniform1i(uniLocation[3], true);
-        gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
-        m.identity(mMatrix);
-        m.translate(mMatrix, [-0.25, -0.25, 0.25], mMatrix);
-        m.rotate(mMatrix, rad, [0, 0, 1], mMatrix);
-        m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.enable(gl.BLEND);
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniform1f(uniLocation[1], vertexAlpha);
-        gl.uniform1i(uniLocation[2], 0);
-        gl.uniform1i(uniLocation[3], false);
-        gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+        gl.uniformMatrix4fv(uniLocation[1], false, mMatrix);
+        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+        gl.uniform3fv(uniLocation[3], lightPosition);
+        gl.uniform3fv(uniLocation[4], camPosition);
+        gl.uniform4fv(uniLocation[5], ambientColor);
+        gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
         gl.flush();
         setTimeout(arguments.callee, 1000 / 30);
     })();
@@ -179,7 +150,7 @@ onload = function () {
     function blend_type(prm) {
         switch (prm) {
             case 0:
-                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
                 break;
             case 1:
                 gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
