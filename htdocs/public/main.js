@@ -1,12 +1,11 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var c;
-var q = new qtnIV();
-var qt = q.identity(q.create());
 onload = function () {
+    var c;
     c = document.getElementById('canvas');
     c.width = 500;
     c.height = 300;
     c.addEventListener('mousemove', mouseMove, true);
+    var eRange = document.getElementById('range');
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
     var v_shader = create_shader('vs');
     var f_shader = create_shader('fs');
@@ -19,7 +18,7 @@ onload = function () {
     attStride[0] = 3;
     attStride[1] = 3;
     attStride[2] = 4;
-    var torusData = torus(64, 64, 0.5, 1.5);
+    var torusData = torus(64, 64, 0.5, 1.5, [0.5, 0.5, 0.5, 1.0]);
     var tPosition = create_vbo(torusData.p);
     var tNormal = create_vbo(torusData.n);
     var tColor = create_vbo(torusData.c);
@@ -40,12 +39,13 @@ onload = function () {
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
     var pMatrix = m.identity(m.create());
+    var qMatrix = m.identity(m.create());
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
     var invMatrix = m.identity(m.create());
     var lightPosition = [15.0, 10.0, 15.0];
     var ambientColor = [0.1, 0.1, 0.1, 1.0];
-    var camPosition = [0.0, 0.0, 10.0];
+    var camPosition = [0.0, 0.0, 20.0];
     var camUpDirection = [0.0, 1.0, 0.0];
     m.lookAt(camPosition, [0, 0, 0], camUpDirection, vMatrix);
     m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
@@ -54,26 +54,41 @@ onload = function () {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.enable(gl.CULL_FACE);
+    var q = new qtnIV();
+    var aQuaternion = q.identity(q.create());
+    var bQuaternion = q.identity(q.create());
+    var sQuaternion = q.identity(q.create());
     (function () {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         count++;
-        var rad = (count % 180) * Math.PI / 90;
-        var qMatrix = m.identity(m.create());
-        q.toMatIV(qt, qMatrix);
-        m.identity(mMatrix);
-        m.multiply(mMatrix, qMatrix, mMatrix);
-        m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
-        m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        m.inverse(mMatrix, invMatrix);
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[1], false, mMatrix);
-        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
-        gl.uniform3fv(uniLocation[3], lightPosition);
-        gl.uniform3fv(uniLocation[4], camPosition);
-        gl.uniform4fv(uniLocation[5], ambientColor);
-        gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
+        var rad = (count % 360) * Math.PI / 180;
+        var time = eRange.value / 100;
+        q.rotate(rad, [1.0, 0.0, 0.0], aQuaternion);
+        q.rotate(rad, [0.0, 1.0, 0.0], bQuaternion);
+        q.slerp(aQuaternion, bQuaternion, time, sQuaternion);
+        ambientColor = [0.5, 0.0, 0.0, 1.0];
+        draw(aQuaternion);
+        ambientColor = [0.0, 0.5, 0.0, 1.0];
+        draw(bQuaternion);
+        ambientColor = [0.0, 0.0, 0.5, 1.0];
+        draw(sQuaternion);
+        function draw(qtn) {
+            q.toMatIV(qtn, qMatrix);
+            m.identity(mMatrix);
+            m.multiply(mMatrix, qMatrix, mMatrix);
+            m.translate(mMatrix, [0.0, 0.0, -5.0], mMatrix);
+            m.multiply(tmpMatrix, mMatrix, mvpMatrix);
+            m.inverse(mMatrix, invMatrix);
+            gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+            gl.uniformMatrix4fv(uniLocation[1], false, mMatrix);
+            gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+            gl.uniform3fv(uniLocation[3], lightPosition);
+            gl.uniform3fv(uniLocation[4], camPosition);
+            gl.uniform4fv(uniLocation[5], ambientColor);
+            gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
+        }
         gl.flush();
         setTimeout(arguments.callee, 1000 / 30);
     })();

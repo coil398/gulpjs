@@ -1,14 +1,17 @@
-var c;
-var q = new qtnIV();
-var qt = q.identity(q.create());
+
 
 onload = function(){
+    var c;
+
     c = document.getElementById('canvas');
 
     c.width = 500;
     c.height = 300;
 
     c.addEventListener('mousemove',mouseMove,true);
+
+    //input range エレメント
+    var eRange = document.getElementById('range');
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
@@ -33,7 +36,7 @@ onload = function(){
     attStride[2] = 4;
 
     //トーラスの生成
-    var torusData = torus(64, 64, 0.5, 1.5);
+    var torusData : torus = torus(64, 64, 0.5, 1.5,[0.5,0.5,0.5,1.0]);
   	var tPosition = create_vbo(torusData.p);
   	var tNormal   = create_vbo(torusData.n);
   	var tColor    = create_vbo(torusData.c);
@@ -62,6 +65,7 @@ onload = function(){
   	var mMatrix   = m.identity(m.create());
   	var vMatrix   = m.identity(m.create());
   	var pMatrix   = m.identity(m.create());
+    var qMatrix   = m.identity(m.create());
   	var tmpMatrix = m.identity(m.create());
   	var mvpMatrix = m.identity(m.create());
   	var invMatrix = m.identity(m.create());
@@ -73,7 +77,7 @@ onload = function(){
     var ambientColor = [0.1,0.1,0.1,1.0];
 
     //カメラの座標
-    var camPosition = [0.0,0.0,10.0];
+    var camPosition = [0.0,0.0,20.0];
 
     //カメラの上方向を表すベクトル
     var camUpDirection = [0.0,1.0,0.0];
@@ -89,6 +93,11 @@ onload = function(){
   	gl.depthFunc(gl.LEQUAL);
   	gl.enable(gl.CULL_FACE);
 
+    var q = new qtnIV();
+    var aQuaternion = q.identity(q.create());
+    var bQuaternion = q.identity(q.create());
+    var sQuaternion = q.identity(q.create());
+
     // 恒常ループ
     (() => {
         // canvasを初期化
@@ -99,25 +108,39 @@ onload = function(){
         // カウンタを元にラジアンを算出
         count++;
 
-        var rad = (count % 180) * Math.PI / 90;
+        var rad = (count % 360) * Math.PI / 180;
 
-        var qMatrix = m.identity(m.create());
-        q.toMatIV(qt,qMatrix);
+        //経過時間係数を取得
+        var time = eRange.value / 100;
 
-        m.identity(mMatrix);
-        m.multiply(mMatrix,qMatrix,mMatrix);
-        m.rotate(mMatrix,rad,[0,1,0],mMatrix);
-        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
-        m.inverse(mMatrix,invMatrix);
+        q.rotate(rad,[1.0,0.0,0.0],aQuaternion);
+        q.rotate(rad,[0.0,1.0,0.0],bQuaternion);
+        q.slerp(aQuaternion,bQuaternion,time,sQuaternion);
 
-        // uniform変数の登録と描画
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-    		gl.uniformMatrix4fv(uniLocation[1], false, mMatrix);
-    		gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
-    		gl.uniform3fv(uniLocation[3], lightPosition);
-    		gl.uniform3fv(uniLocation[4], camPosition);
-    		gl.uniform4fv(uniLocation[5], ambientColor);
-    		gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
+        ambientColor = [0.5,0.0,0.0,1.0];
+        draw(aQuaternion);
+        ambientColor = [0.0,0.5,0.0,1.0];
+        draw(bQuaternion);
+        ambientColor = [0.0,0.0,0.5,1.0];
+        draw(sQuaternion);
+
+        function draw(qtn){
+          q.toMatIV(qtn,qMatrix);
+          m.identity(mMatrix);
+          m.multiply(mMatrix,qMatrix,mMatrix);
+          m.translate(mMatrix,[0.0,0.0,-5.0],mMatrix);
+          m.multiply(tmpMatrix,mMatrix,mvpMatrix);
+          m.inverse(mMatrix,invMatrix);
+
+          // uniform変数の登録と描画
+          gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
+          gl.uniformMatrix4fv(uniLocation[1], false, mMatrix);
+          gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+          gl.uniform3fv(uniLocation[3], lightPosition);
+          gl.uniform3fv(uniLocation[4], camPosition);
+          gl.uniform4fv(uniLocation[5], ambientColor);
+          gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
+        }
 
         // コンテキストの再描画
         gl.flush();
