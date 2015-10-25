@@ -1,12 +1,14 @@
+var c;
+var q = new qtnIV();
+var qt = q.identity(q.create());
+
 onload = function(){
-    // canvasエレメントを取得
-    var c = document.getElementById('canvas');
+    c = document.getElementById('canvas');
+
     c.width = 500;
     c.height = 300;
 
-    var elmTransparency = document.getElementById('transparency');
-    var elmAdd          = document.getElementById('add');
-	  var elmRange        = document.getElementById('range');
+    c.addEventListener('mousemove',mouseMove,true);
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
@@ -64,10 +66,6 @@ onload = function(){
   	var mvpMatrix = m.identity(m.create());
   	var invMatrix = m.identity(m.create());
 
-    //四元数の生成と初期化
-    var q = new qtnIV();
-    var xQuaternion = q.identity(q.create());
-
     //ライトの位置
     var lightPosition = [15.0,10.0,15.0];
 
@@ -80,9 +78,16 @@ onload = function(){
     //カメラの上方向を表すベクトル
     var camUpDirection = [0.0,1.0,0.0];
 
+    m.lookAt(camPosition,[0,0,0],camUpDirection,vMatrix);
+    m.perspective(45,c.width / c.height,0.1,100,pMatrix);
+    m.multiply(pMatrix,vMatrix,tmpMatrix);
+
     // カウンタの宣言
     var count = 0;
 
+    gl.enable(gl.DEPTH_TEST);
+  	gl.depthFunc(gl.LEQUAL);
+  	gl.enable(gl.CULL_FACE);
 
     // 恒常ループ
     (() => {
@@ -95,19 +100,12 @@ onload = function(){
         count++;
 
         var rad = (count % 180) * Math.PI / 90;
-        var rad2 = (count % 720) * Math.PI / 360;
 
-        //クオータニオンによる回転
-        q.rotate(rad2,[1,0,0],xQuaternion);
-        q.toVecIII([0.0,0.0,10.0],xQuaternion,camPosition);
-        q.toVecIII([0.0,1.0,0.0],xQuaternion,camUpDirection);
-
-        //ビュー及びプロジェクション座標変換行列
-        m.lookAt(camPosition,[0,0,0],camUpDirection,vMatrix);
-        m.perspective(45,c.width / c.height,0.1,100,pMatrix);
-        m.multiply(pMatrix,vMatrix,tmpMatrix);
+        var qMatrix = m.identity(m.create());
+        q.toMatIV(qt,qMatrix);
 
         m.identity(mMatrix);
+        m.multiply(mMatrix,qMatrix,mMatrix);
         m.rotate(mMatrix,rad,[0,1,0],mMatrix);
         m.multiply(tmpMatrix,mMatrix,mvpMatrix);
         m.inverse(mMatrix,invMatrix);
@@ -251,48 +249,20 @@ onload = function(){
         return ibo;
     }
 
-    // テクスチャを生成する関数
-    function create_texture(source){
-        // イメージオブジェクトの生成
-        var img = new Image();
-
-        // データのオンロードをトリガーにする
-        img.onload = function(){
-            // テクスチャオブジェクトの生成
-            var tex = gl.createTexture();
-
-            // テクスチャをバインドする
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-
-            // テクスチャへイメージを適用
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-
-            // ミップマップを生成
-            gl.generateMipmap(gl.TEXTURE_2D);
-
-            // テクスチャのバインドを無効化
-            gl.bindTexture(gl.TEXTURE_2D, null);
-
-            //生成したテクスチャを変数に代入
-            texture = tex;
-        };
-
-        // イメージオブジェクトのソースを指定
-        img.src = source;
-    }
-
-    //ブレンドタイプを設定する関数
-    function blend_type(prm){
-		switch(prm){
-			case 0:
-				gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE);
-				break;
-			case 1:
-				gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-				break;
-			default:
-				break;
-		}
-	}
-
 };
+
+function mouseMove(e){
+  var cw = c.width;
+  var ch = c.height;
+  var wh = 1 / Math.sqrt(cw * cw + ch * ch);
+  var x = e.clientX - c.offsetLeft - cw * 0.5;
+  var y = e.clientY - c.offsetTop - ch * 0.5;
+  var sq = Math.sqrt(x * x + y * y);
+  var r = sq * 2.0 * Math.PI * wh;
+  if(sq != 1){
+    sq = 1 / sq;
+    x *= sq;
+    y *= sq;
+  }
+  q.rotate(r,[y,x,0.0],qt);
+}

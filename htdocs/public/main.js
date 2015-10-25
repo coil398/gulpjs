@@ -1,11 +1,12 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var c;
+var q = new qtnIV();
+var qt = q.identity(q.create());
 onload = function () {
-    var c = document.getElementById('canvas');
+    c = document.getElementById('canvas');
     c.width = 500;
     c.height = 300;
-    var elmTransparency = document.getElementById('transparency');
-    var elmAdd = document.getElementById('add');
-    var elmRange = document.getElementById('range');
+    c.addEventListener('mousemove', mouseMove, true);
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
     var v_shader = create_shader('vs');
     var f_shader = create_shader('fs');
@@ -42,27 +43,27 @@ onload = function () {
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
     var invMatrix = m.identity(m.create());
-    var q = new qtnIV();
-    var xQuaternion = q.identity(q.create());
     var lightPosition = [15.0, 10.0, 15.0];
     var ambientColor = [0.1, 0.1, 0.1, 1.0];
     var camPosition = [0.0, 0.0, 10.0];
     var camUpDirection = [0.0, 1.0, 0.0];
+    m.lookAt(camPosition, [0, 0, 0], camUpDirection, vMatrix);
+    m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+    m.multiply(pMatrix, vMatrix, tmpMatrix);
     var count = 0;
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE);
     (function () {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         count++;
         var rad = (count % 180) * Math.PI / 90;
-        var rad2 = (count % 720) * Math.PI / 360;
-        q.rotate(rad2, [1, 0, 0], xQuaternion);
-        q.toVecIII([0.0, 0.0, 10.0], xQuaternion, camPosition);
-        q.toVecIII([0.0, 1.0, 0.0], xQuaternion, camUpDirection);
-        m.lookAt(camPosition, [0, 0, 0], camUpDirection, vMatrix);
-        m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
-        m.multiply(pMatrix, vMatrix, tmpMatrix);
+        var qMatrix = m.identity(m.create());
+        q.toMatIV(qt, qMatrix);
         m.identity(mMatrix);
+        m.multiply(mMatrix, qMatrix, mMatrix);
         m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
         m.inverse(mMatrix, invMatrix);
@@ -135,30 +136,21 @@ onload = function () {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         return ibo;
     }
-    function create_texture(source) {
-        var img = new Image();
-        img.onload = function () {
-            var tex = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, tex);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            gl.generateMipmap(gl.TEXTURE_2D);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-            texture = tex;
-        };
-        img.src = source;
-    }
-    function blend_type(prm) {
-        switch (prm) {
-            case 0:
-                gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE);
-                break;
-            case 1:
-                gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-                break;
-            default:
-                break;
-        }
-    }
 };
+function mouseMove(e) {
+    var cw = c.width;
+    var ch = c.height;
+    var wh = 1 / Math.sqrt(cw * cw + ch * ch);
+    var x = e.clientX - c.offsetLeft - cw * 0.5;
+    var y = e.clientY - c.offsetTop - ch * 0.5;
+    var sq = Math.sqrt(x * x + y * y);
+    var r = sq * 2.0 * Math.PI * wh;
+    if (sq != 1) {
+        sq = 1 / sq;
+        x *= sq;
+        y *= sq;
+    }
+    q.rotate(r, [y, x, 0.0], qt);
+}
 
 },{}]},{},[1]);
