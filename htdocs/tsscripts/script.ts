@@ -2,6 +2,8 @@ var c;
 var q = new qtnIV();
 var qt = q.identity(q.create());
 
+alert();
+
 function mouseMove(e){
   var cw = c.width;
   var ch = c.height;
@@ -27,7 +29,10 @@ onload = function(){
 
     c.addEventListener('mousemove',mouseMove,true);
 
-    var eCheck = document.getElementById('check');
+    var ePointSize = document.getElementById('point_size');
+    var eLines = document.getElementById('lines');
+    var eLineStrip = document.getElementById('line_strip');
+    var eLineLoop = document.getElementById('line_loop');
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
@@ -43,53 +48,39 @@ onload = function(){
     var attLocation = new Array();
     attLocation[0] = gl.getAttribLocation(prg, 'position');
     attLocation[1] = gl.getAttribLocation(prg, 'color');
-    attLocation[2] = gl.getAttribLocation(prg, 'textureCoord');
 
     // attributeの要素数を配列に格納
     var attStride = new Array();
     attStride[0] = 3;
     attStride[1] = 4;
-    attStride[2] = 2;
+
+    var pointSphere = sphere(16,16,2.0);
+    var pPos = create_vbo(pointSphere.p);
+    var pCol = create_vbo(pointSphere.c);
+    var pVBOList = [pPos,pCol];
 
     var position = [
-      -1.0,1.0,0.0,
-      1.0,1.0,0.0,
       -1.0,-1.0,0.0,
-      1.0,-1.0,0.0
+      1.0,-1.0,0.0,
+      -1.0,1.0,0.0,
+      1.0,1.0,0.0
     ];
 
     var color = [
       1.0,1.0,1.0,1.0,
-      1.0,1.0,1.0,1.0,
-      1.0,1.0,1.0,1.0,
-      1.0,1.0,1.0,1.0
+      1.0,0.0,0.0,1.0,
+      0.0,1.0,0.0,1.0,
+      0.0,0.0,1.0,1.0
     ];
 
-    var textureCoord = [
-      0.0,0.0,
-      1.0,0.0,
-      0.0,1.0,
-      1.0,1.0
-    ];
-
-    var index = [
-      0,1,2,
-      3,2,1
-    ];
-
-    var vPosition = create_vbo(position);
-    var vColor = create_vbo(color);
-    var vTextureCoord = create_vbo(textureCoord);
-    var VBOList = [vPosition,vColor,vTextureCoord];
-    var iIndex = create_ibo(index);
-
-    set_attribute(VBOList,attLocation,attStride);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,iIndex);
+    var lPos = create_vbo(position);
+    var lCol = create_vbo(color);
+    var lVBOList = [lPos,lCol];
 
     // uniformLocationを配列に取得
     var uniLocation = new Array();
     uniLocation[0] = gl.getUniformLocation(prg,'mvpMatrix');
-    uniLocation[1] = gl.getUniformLocation(prg,'texture');
+    uniLocation[1] = gl.getUniformLocation(prg,'pointSize');
 
     //カリング
     //gl.enable(gl.CULL_FACE);
@@ -114,21 +105,16 @@ onload = function(){
   	gl.depthFunc(gl.LEQUAL);
   	gl.enable(gl.BLEND);
 
-    gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE);
-
-    var texture0 = null;
-    var texture1 = null;
-
-    create_texture('../images/texture0.png',0);
-    create_texture('../images/texture1.png',1);
-
-
     // 恒常ループ
     (() => {
         // canvasを初期化
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        var rad = (count % 360) * Math.PI / 180;
+
+        count++;
 
         var qMatrix = m.identity(m.create());
         q.toMatIV(qt,qMatrix);
@@ -146,27 +132,32 @@ onload = function(){
         m.perspective(45,c.width/c.height,0.1,100,pMatrix);
         m.multiply(pMatrix,vMatrix,tmpMatrix);
 
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D,texture1);
-        gl.uniform1i(uniLocation[1],1);
+        var pointSize = ePointSize.value / 10;
 
+        //点を描画
+        set_attribute(pVBOList,attLocation,attStride);
         m.identity(mMatrix);
-    		m.rotate(mMatrix, Math.PI / 2, [1, 0, 0], mMatrix);
-    		m.scale(mMatrix, [3.0, 3.0, 1.0], mMatrix);
-    		m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-    		gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-    		gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+        m.rotate(mMatrix,rad,[0,1,0],mMatrix);
+        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
+        gl.uniformMatrix4fv(uniLocation[0],false,mvpMatrix);
+        gl.uniform1f(uniLocation[1],pointSize);
+        gl.drawArrays(gl.POINTS,0,pointSphere.p.length / 3);
 
-        gl.activeTexture(gl.TEXTURE0);
-    		gl.bindTexture(gl.TEXTURE_2D, texture0);
-    		gl.uniform1i(uniLocation[1], 0);
+        //線のプリミティブタイプを判別
+        var lineOption = 0;
+        if(eLines.checked){lineOption = gl.LINES;}
+        if(eLineStrip.checked){lineOption = gl.LINE_STRIP;}
+        if(eLineLoop.checked){lineOption = gl.LINE_LOOP;}
 
+        //線を描画
+        set_attribute(lVBOList,attLocation,attStride);
         m.identity(mMatrix);
-    		m.translate(mMatrix, [0.0, 1.0, 0.0], mMatrix);
-    		if(eCheck.checked){m.multiply(mMatrix, invMatrix, mMatrix);}
-    		m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-    		gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-    		gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
+        m.rotate(mMatrix,Math.PI / 2,[1,0,0],mMatrix);
+        m.scale(mMatrix,[3.0,3.0,1.0],mMatrix);
+        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
+        gl.uniformMatrix4fv(uniLocation[0],false,mvpMatrix);
+        gl.drawArrays(lineOption,0,position.length / 3);
+
 
 
         // コンテキストの再描画
