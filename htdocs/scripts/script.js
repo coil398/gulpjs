@@ -73,7 +73,7 @@ onload = function () {
     var eyePosition = [0.0, 0.0, 5.0];
     (function () {
         count++;
-        var rad = (count % 360) * Math.PI / 180;
+        var rad = 0;
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

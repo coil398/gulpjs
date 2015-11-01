@@ -109,7 +109,7 @@ onload = function(){
     (() => {
         count++;
 
-        var rad = (count % 360) * Math.PI / 180;
+        var rad = 0;
 
         gl.clearColor(0.0,0.0,0.0,1.0);
         gl.clearDepth(1.0);
