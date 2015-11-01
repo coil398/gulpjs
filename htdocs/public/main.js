@@ -1,12 +1,9 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-// sample_027
-//
-// WebGL縺ｧ繝輔Ξ繝ｼ繝繝舌ャ繝輔ぃ繧剃ｽｿ縺
 onload = function () {
     var c = document.getElementById('canvas');
     c.width = 512;
     c.height = 512;
-    var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    var gl = c.getContext('webgl' || c.getContext('experimental-webgl'));
     var v_shader = create_shader('vs');
     var f_shader = create_shader('fs');
     var prg = create_program(v_shader, f_shader);
@@ -48,6 +45,8 @@ onload = function () {
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
     var invMatrix = m.identity(m.create());
+    var qMatrix = m.identity(m.create());
+    var count = 0;
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     var texture0 = null;
@@ -58,15 +57,14 @@ onload = function () {
     var fBufferWidth = 512;
     var fBufferHeight = 512;
     var fBuffer = create_framebuffer(fBufferWidth, fBufferHeight);
-    var count = 0;
     (function () {
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearDepth(1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         count++;
         var rad = (count % 360) * Math.PI / 180;
         var rad2 = (count % 720) * Math.PI / 360;
         gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer.f);
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         set_attribute(eVBOList, attLocation, attStride);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eIndex);
         var lightDirection = [-1.0, 2.0, 1.0];
@@ -183,10 +181,6 @@ onload = function () {
             gl.bindTexture(gl.TEXTURE_2D, tex);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
             gl.generateMipmap(gl.TEXTURE_2D);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
             switch (number) {
                 case 0:
                     texture0 = tex;
