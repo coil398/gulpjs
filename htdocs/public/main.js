@@ -1,9 +1,10 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 onload = function () {
     var c = document.getElementById('canvas');
-    c.width = 512;
-    c.height = 512;
+    c.width = 256;
+    c.height = 256;
     var gl = c.getContext('webgl' || c.getContext('experimental-webgl'));
+    var eBlur = document.getElementById('blur');
     var v_shader = create_shader('vs');
     var f_shader = create_shader('fs');
     var prg = create_program(v_shader, f_shader);
@@ -17,13 +18,6 @@ onload = function () {
     attStride[1] = 3;
     attStride[2] = 4;
     attStride[3] = 2;
-    var cubeData = cube(2.0, [1.0, 1.0, 1.0, 1.0]);
-    var cPosition = create_vbo(cubeData.p);
-    var cNormal = create_vbo(cubeData.n);
-    var cColor = create_vbo(cubeData.c);
-    var cTextureCoord = create_vbo(cubeData.t);
-    var cVBOList = [cPosition, cNormal, cColor, cTextureCoord];
-    var cIndex = create_ibo(cubeData.i);
     var earthData = sphere(64, 64, 1.0, [1.0, 1.0, 1.0, 1.0]);
     var ePosition = create_vbo(earthData.p);
     var eNormal = create_vbo(earthData.n);
@@ -38,6 +32,39 @@ onload = function () {
     uniLocation[3] = gl.getUniformLocation(prg, 'lightDirection');
     uniLocation[4] = gl.getUniformLocation(prg, 'useLight');
     uniLocation[5] = gl.getUniformLocation(prg, 'texture');
+    v_shader = create_shader('bvs');
+    f_shader = create_shader('bfs');
+    var bPrg = create_program(v_shader, f_shader);
+    var bAttLocation = new Array();
+    bAttLocation[0] = gl.getAttribLocation(bPrg, 'position');
+    bAttLocation[1] = gl.getAttribLocation(bPrg, 'color');
+    var bAttStride = new Array();
+    bAttStride[0] = 3;
+    bAttStride[1] = 4;
+    var position = [
+        -1.0, 1.0, 0.0,
+        1.0, 1.0, 0.0,
+        -1.0, -1.0, 0.0,
+        1.0, -1.0, 0.0
+    ];
+    var color = [
+        1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0,
+        1.0, 1.0, 1.0, 1.0
+    ];
+    var index = [
+        0, 1, 2,
+        3, 2, 1
+    ];
+    var vPosition = create_vbo(position);
+    var vColor = create_vbo(color);
+    var vVBOList = [vPosition, vColor];
+    var vIndex = create_ibo(index);
+    var bUniLocation = new Array();
+    bUniLocation[0] = gl.getUniformLocation(bPrg, 'mvpMatrix');
+    bUniLocation[1] = gl.getUniformLocation(bPrg, 'texture');
+    bUniLocation[2] = gl.getUniformLocation(bPrg, 'useBlur');
     var m = new matIV();
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
@@ -51,20 +78,20 @@ onload = function () {
     gl.depthFunc(gl.LEQUAL);
     var texture0 = null;
     var texture1 = null;
-    create_texture('../images/texture0.png', 0);
+    create_texture('../images/texture.png', 0);
     create_texture('../images/texture1.png', 1);
     gl.activeTexture(gl.TEXTURE0);
-    var fBufferWidth = 512;
-    var fBufferHeight = 512;
+    var fBufferWidth = 256;
+    var fBufferHeight = 256;
     var fBuffer = create_framebuffer(fBufferWidth, fBufferHeight);
     (function () {
+        count++;
+        var rad = (count % 360) * Math.PI / 180;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer.f);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        count++;
-        var rad = (count % 360) * Math.PI / 180;
-        var rad2 = (count % 720) * Math.PI / 360;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer.f);
+        gl.useProgram(prg);
         set_attribute(eVBOList, attLocation, attStride);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eIndex);
         var lightDirection = [-1.0, 2.0, 1.0];
@@ -94,24 +121,23 @@ onload = function () {
         gl.uniform1i(uniLocation[4], true);
         gl.drawElements(gl.TRIANGLES, earthData.i.length, gl.UNSIGNED_SHORT, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.clearColor(0.0, 0.7, 0.7, 1.0);
+        gl.clearColor(0.0, 0.5, 0.5, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        set_attribute(cVBOList, attLocation, attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cIndex);
+        gl.useProgram(bPrg);
+        var useBlur = eBlur.checked;
+        set_attribute(vVBOList, bAttLocation, bAttStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vIndex);
         gl.bindTexture(gl.TEXTURE_2D, fBuffer.t);
-        lightDirection = [-1.0, 0.0, 0.0];
-        m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
-        m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+        m.lookAt([0.0, 0.0, 0.5], [0.0, 0.0, 0.0], [0, 1, 0], vMatrix);
+        m.ortho(-1.0, 1.0, 1.0, -1.0, 0.1, 1, pMatrix);
         m.multiply(pMatrix, vMatrix, tmpMatrix);
         m.identity(mMatrix);
-        m.rotate(mMatrix, rad2, [1, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        m.inverse(mMatrix, invMatrix);
-        gl.uniformMatrix4fv(uniLocation[0], false, mMatrix);
-        gl.uniformMatrix4fv(uniLocation[1], false, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
-        gl.drawElements(gl.TRIANGLES, cubeData.i.length, gl.UNSIGNED_SHORT, 0);
+        gl.uniformMatrix4fv(bUniLocation[0], false, mvpMatrix);
+        gl.uniform1i(bUniLocation[1], 0);
+        gl.uniform1i(bUniLocation[2], useBlur);
+        gl.drawElements(gl.TRIANGLES, index.length, gl.UNSIGNED_SHORT, 0);
         gl.flush();
         setTimeout(arguments.callee, 1000 / 30);
     })();

@@ -3,11 +3,13 @@ onload = function(){
     // canvasを設定
     var c = document.getElementById('canvas');
 
-    c.width = 512;
-    c.height = 512;
+    c.width = 256;
+    c.height = 256;
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl' || c.getContext('experimental-webgl'));
+
+    var eBlur = document.getElementById('blur');
 
     // 頂点シェーダとフラグメントシェーダの生成
     var v_shader = create_shader('vs');
@@ -30,16 +32,6 @@ onload = function(){
     attStride[2] = 4;
     attStride[3] = 2;
 
-    // キューブ
-    var cubeData = cube(2.0,[1.0,1.0,1.0,1.0]);
-    var cPosition = create_vbo(cubeData.p);
-    var cNormal = create_vbo(cubeData.n);
-    var cColor = create_vbo(cubeData.c);
-    var cTextureCoord = create_vbo(cubeData.t);
-    var cVBOList = [cPosition,cNormal,cColor,cTextureCoord];
-    var cIndex = create_ibo(cubeData.i);
-
-
     // スフィア
     var earthData = sphere(64,64,1.0,[1.0,1.0,1.0,1.0]);
     var ePosition = create_vbo(earthData.p);
@@ -58,6 +50,59 @@ onload = function(){
     uniLocation[3] = gl.getUniformLocation(prg,'lightDirection');
     uniLocation[4] = gl.getUniformLocation(prg,'useLight');
     uniLocation[5] = gl.getUniformLocation(prg,'texture');
+
+    // ブラーシェーダ
+
+    //頂点シェーダ
+    v_shader = create_shader('bvs');
+    f_shader = create_shader('bfs');
+    var bPrg = create_program(v_shader,f_shader);
+
+    // attributeLocationを配列に取得
+    var bAttLocation = new Array();
+    bAttLocation[0] = gl.getAttribLocation(bPrg,'position');
+    bAttLocation[1] = gl.getAttribLocation(bPrg,'color');
+
+    // attributeの要素数を配列に格納
+    var bAttStride = new Array();
+    bAttStride[0] = 3;
+    bAttStride[1] = 4;
+
+    // 頂点の位置
+    var position = [
+      -1.0, 1.0, 0.0,
+       1.0, 1.0, 0.0,
+      -1.0,-1.0, 0.0,
+       1.0,-1.0, 0.0
+    ];
+
+    // 頂点色
+    var color = [
+      1.0, 1.0, 1.0, 1.0,
+      1.0, 1.0, 1.0, 1.0,
+      1.0, 1.0, 1.0, 1.0,
+      1.0, 1.0, 1.0, 1.0
+    ];
+
+    // 頂点インデックス
+    var index = [
+      0,1,2,
+      3,2,1
+    ];
+
+    // VBOとIBOの生成
+    var vPosition = create_vbo(position);
+    var vColor = create_vbo(color);
+    var vVBOList = [vPosition,vColor];
+    var vIndex = create_ibo(index);
+
+    // uniformLocationを配列に取得
+    var bUniLocation = new Array();
+    bUniLocation[0] = gl.getUniformLocation(bPrg,'mvpMatrix');
+    bUniLocation[1] = gl.getUniformLocation(bPrg,'texture');
+    bUniLocation[2] = gl.getUniformLocation(bPrg,'useBlur');
+
+    // ブラーフィルター終了
 
     //カリング
     //gl.enable(gl.CULL_FACE);
@@ -80,26 +125,27 @@ onload = function(){
     // テクスチャの用意
     var texture0 = null;
     var texture1 = null;
-    create_texture('../images/texture0.png',0);
+    create_texture('../images/texture.png',0);
     create_texture('../images/texture1.png',1);
     gl.activeTexture(gl.TEXTURE0);
 
-    var fBufferWidth = 512;
-    var fBufferHeight = 512;
+    var fBufferWidth = 256;
+    var fBufferHeight = 256;
     var fBuffer = create_framebuffer(fBufferWidth,fBufferHeight);
 
     // 恒常ループ
     (() => {
+        count++;
+        var rad = (count % 360) * Math.PI / 180;
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER,fBuffer.f);
+
         // canvasを初期化
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        count++;
-        var rad = (count % 360) * Math.PI / 180;
-        var rad2 = (count % 720) * Math.PI / 360;
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER,fBuffer.f);
+        gl.useProgram(prg);
 
         set_attribute(eVBOList,attLocation,attStride);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,eIndex);
@@ -136,29 +182,29 @@ onload = function(){
 
         gl.bindFramebuffer(gl.FRAMEBUFFER,null);
 
-        gl.clearColor(0.0,0.7,0.7,1.0);
+        gl.clearColor(0.0,0.5,0.5,1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        set_attribute(cVBOList,attLocation,attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,cIndex);
+        gl.useProgram(bPrg);
+
+        var useBlur = eBlur.checked;
+
+        set_attribute(vVBOList,bAttLocation,bAttStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,vIndex);
 
         gl.bindTexture(gl.TEXTURE_2D,fBuffer.t);
 
-        lightDirection = [-1.0,0.0,0.0];
-
-        m.lookAt([0.0,0.0,5.0],[0,0,0],[0,1,0],vMatrix);
-        m.perspective(45,c.width/c.height,0.1,100,pMatrix);
+        m.lookAt([0.0,0.0,0.5],[0.0,0.0,0.0],[0,1,0],vMatrix);
+        m.ortho(-1.0,1.0,1.0,-1.0,0.1,1,pMatrix);
         m.multiply(pMatrix,vMatrix,tmpMatrix);
 
         m.identity(mMatrix);
-        m.rotate(mMatrix,rad2,[1,1,0],mMatrix);
         m.multiply(tmpMatrix,mMatrix,mvpMatrix);
-        m.inverse(mMatrix,invMatrix);
-        gl.uniformMatrix4fv(uniLocation[0],false,mMatrix);
-        gl.uniformMatrix4fv(uniLocation[1],false,mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[2],false,invMatrix);
-        gl.drawElements(gl.TRIANGLES,cubeData.i.length,gl.UNSIGNED_SHORT,0);
+        gl.uniformMatrix4fv(bUniLocation[0],false,mvpMatrix);
+        gl.uniform1i(bUniLocation[1],0);
+        gl.uniform1i(bUniLocation[2],useBlur);
+        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
 
         // コンテキストの再描画
         gl.flush();
