@@ -1,27 +1,11 @@
-var c;
-var q = new qtnIV();
-var qt = q.identity(q.create());
-function mouseMove(e) {
-    var cw = c.width;
-    var ch = c.height;
-    var wh = 1 / Math.sqrt(cw * cw + ch * ch);
-    var x = e.clientX - c.offsetLeft - cw * 0.5;
-    var y = e.clientY - c.offsetTop - ch * 0.5;
-    var sq = Math.sqrt(x * x + y * y);
-    var r = sq * 2.0 * Math.PI * wh;
-    if (sq != 1) {
-        sq = 1 / sq;
-        x *= sq;
-        y *= sq;
-    }
-    q.rotate(r, [y, x, 0.0], qt);
-}
+// sample_027
+//
+// WebGL縺ｧ繝輔Ξ繝ｼ繝繝舌ャ繝輔ぃ繧剃ｽｿ縺
 onload = function () {
-    c = document.getElementById('canvas');
-    c.width = 500;
-    c.height = 300;
-    c.addEventListener('mousemove', mouseMove, true);
-    var gl = c.getContext('webgl', { stencil: true }) || c.getContext('experimental-webgl', { stencil: CSSStyleRule });
+    var c = document.getElementById('canvas');
+    c.width = 512;
+    c.height = 512;
+    var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
     var v_shader = create_shader('vs');
     var f_shader = create_shader('fs');
     var prg = create_program(v_shader, f_shader);
@@ -35,56 +19,27 @@ onload = function () {
     attStride[1] = 3;
     attStride[2] = 4;
     attStride[3] = 2;
-    var position = [
-        -1.0, 1.0, 0.0,
-        1.0, 1.0, 0.0,
-        -1.0, -1.0, 0.0,
-        1.0, -1.0, 0.0
-    ];
-    var normal = [
-        0.0, 0.0, 1.0,
-        0.0, 0.0, 1.0,
-        0.0, 0.0, 1.0,
-        0.0, 0.0, 1.0
-    ];
-    var color = [
-        1.0, 0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, 1.0,
-        0.0, 0.0, 1.0, 1.0,
-        1.0, 1.0, 1.0, 1.0
-    ];
-    var textureCoord = [
-        0.0, 0.0,
-        1.0, 0.0,
-        0.0, 1.0,
-        1.0, 1.0
-    ];
-    var index = [
-        0, 1, 2,
-        3, 2, 1
-    ];
-    var torusData = torus(64, 64, 0.25, 1.0);
-    var tPosition = create_vbo(torusData.p);
-    var tNormal = create_vbo(torusData.n);
-    var tColor = create_vbo(torusData.c);
-    var tTextureCoord = create_vbo(torusData.t);
-    var tVBOList = [tPosition, tNormal, tColor, tTextureCoord];
-    var tIndex = create_ibo(torusData.i);
-    var sphereData = sphere(64, 64, 1.0, [1.0, 1.0, 1.0, 1.0]);
-    var sPosition = create_vbo(sphereData.p);
-    var sNormal = create_vbo(sphereData.n);
-    var sColor = create_vbo(sphereData.c);
-    var sTextureCoord = create_vbo(sphereData.t);
-    var sVBOList = [sPosition, sNormal, sColor, sTextureCoord];
-    var sIndex = create_ibo(sphereData.i);
+    var cubeData = cube(2.0, [1.0, 1.0, 1.0, 1.0]);
+    var cPosition = create_vbo(cubeData.p);
+    var cNormal = create_vbo(cubeData.n);
+    var cColor = create_vbo(cubeData.c);
+    var cTextureCoord = create_vbo(cubeData.t);
+    var cVBOList = [cPosition, cNormal, cColor, cTextureCoord];
+    var cIndex = create_ibo(cubeData.i);
+    var earthData = sphere(64, 64, 1.0, [1.0, 1.0, 1.0, 1.0]);
+    var ePosition = create_vbo(earthData.p);
+    var eNormal = create_vbo(earthData.n);
+    var eColor = create_vbo(earthData.c);
+    var eTextureCoord = create_vbo(earthData.t);
+    var eVBOList = [ePosition, eNormal, eColor, eTextureCoord];
+    var eIndex = create_ibo(earthData.i);
     var uniLocation = new Array();
-    uniLocation[0] = gl.getUniformLocation(prg, 'mvpMatrix');
-    uniLocation[1] = gl.getUniformLocation(prg, 'invMatrix');
-    uniLocation[2] = gl.getUniformLocation(prg, 'lightDirection');
-    uniLocation[3] = gl.getUniformLocation(prg, 'useLight');
-    uniLocation[4] = gl.getUniformLocation(prg, 'texture');
-    uniLocation[5] = gl.getUniformLocation(prg, 'useTexture');
-    uniLocation[6] = gl.getUniformLocation(prg, 'outLine');
+    uniLocation[0] = gl.getUniformLocation(prg, 'mMatrix');
+    uniLocation[1] = gl.getUniformLocation(prg, 'mvpMatrix');
+    uniLocation[2] = gl.getUniformLocation(prg, 'invMatrix');
+    uniLocation[3] = gl.getUniformLocation(prg, 'lightDirection');
+    uniLocation[4] = gl.getUniformLocation(prg, 'useLight');
+    uniLocation[5] = gl.getUniformLocation(prg, 'texture');
     var m = new matIV();
     var mMatrix = m.identity(m.create());
     var vMatrix = m.identity(m.create());
@@ -92,71 +47,72 @@ onload = function () {
     var tmpMatrix = m.identity(m.create());
     var mvpMatrix = m.identity(m.create());
     var invMatrix = m.identity(m.create());
-    var qMatrix = m.identity(m.create());
-    var lightDirection = [1.0, 1.0, 1.0];
-    var count = 0;
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
-    var texture = null;
-    texture = create_texture('texture.png');
+    var texture0 = null;
+    var texture1 = null;
+    create_texture('../images/texture0.png', 0);
+    create_texture('../images/texture1.png', 1);
+    gl.activeTexture(gl.TEXTURE0);
+    var fBufferWidth = 512;
+    var fBufferHeight = 512;
+    var fBuffer = create_framebuffer(fBufferWidth, fBufferHeight);
+    var count = 0;
     (function () {
-        gl.clearColor(0.0, 0.7, 0.7, 1.0);
-        gl.clearDepth(1.0);
-        gl.clearStencil(0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
         count++;
         var rad = (count % 360) * Math.PI / 180;
-        m.lookAt([0.0, 0.0, 10.0], [0, 0, 0], [0, 1, 0], vMatrix);
-        m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
-        var qMatrix = m.identity(m.create());
-        q.toMatIV(qt, qMatrix);
-        m.multiply(vMatrix, qMatrix, vMatrix);
+        var rad2 = (count % 720) * Math.PI / 360;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fBuffer.f);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearDepth(1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        set_attribute(eVBOList, attLocation, attStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, eIndex);
+        var lightDirection = [-1.0, 2.0, 1.0];
+        m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
+        m.perspective(45, fBufferWidth / fBufferHeight, 0.1, 100, pMatrix);
         m.multiply(pMatrix, vMatrix, tmpMatrix);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.enable(gl.STENCIL_TEST);
-        gl.colorMask(false, false, false, false);
-        gl.depthMask(false);
-        gl.stencilFunc(gl.ALWAYS, 1, ~0);
-        gl.stencilOp(gl.KEEP, gl.REPLACE, gl.REPLACE);
-        set_attribute(tVBOList, attLocation, attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tIndex);
-        m.identity(mMatrix);
-        m.rotate(mMatrix, rad, [0.0, 1.0, 1.0], mMatrix);
-        m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniform1i(uniLocation[3], false);
-        gl.uniform1i(uniLocation[5], false);
-        gl.uniform1i(uniLocation[6], true);
-        gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
-        gl.colorMask(true, true, true, true);
-        gl.depthMask(true);
-        gl.stencilFunc(gl.EQUAL, 0, ~0);
-        gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
-        set_attribute(sVBOList, attLocation, attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sIndex);
+        gl.bindTexture(gl.TEXTURE_2D, texture1);
         m.identity(mMatrix);
         m.scale(mMatrix, [50.0, 50.0, 50.0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniform1i(uniLocation[3], false);
-        gl.uniform1i(uniLocation[4], 0);
-        gl.uniform1i(uniLocation[5], true);
-        gl.uniform1i(uniLocation[6], false);
-        gl.drawElements(gl.TRIANGLES, sphereData.i.length, gl.UNSIGNED_SHORT, 0);
-        gl.disable(gl.STENCIL_TEST);
-        set_attribute(tVBOList, attLocation, attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, tIndex);
+        m.inverse(mMatrix, invMatrix);
+        gl.uniformMatrix4fv(uniLocation[0], false, mMatrix);
+        gl.uniformMatrix4fv(uniLocation[1], false, mvpMatrix);
+        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+        gl.uniform3fv(uniLocation[3], lightDirection);
+        gl.uniform1i(uniLocation[4], false);
+        gl.uniform1i(uniLocation[5], 0);
+        gl.drawElements(gl.TRIANGLES, earthData.i.length, gl.UNSIGNED_SHORT, 0);
+        gl.bindTexture(gl.TEXTURE_2D, texture0);
         m.identity(mMatrix);
-        m.rotate(mMatrix, rad, [0.0, 1.0, 1.0], mMatrix);
+        m.rotate(mMatrix, rad, [0, 1, 0], mMatrix);
         m.multiply(tmpMatrix, mMatrix, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[0], false, mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[1], false, invMatrix);
-        gl.uniform3fv(uniLocation[2], lightDirection);
-        gl.uniform1i(uniLocation[3], true);
-        gl.uniform1i(uniLocation[5], false);
-        gl.uniform1i(uniLocation[6], false);
-        gl.drawElements(gl.TRIANGLES, torusData.i.length, gl.UNSIGNED_SHORT, 0);
+        m.inverse(mMatrix, invMatrix);
+        gl.uniformMatrix4fv(uniLocation[0], false, mMatrix);
+        gl.uniformMatrix4fv(uniLocation[1], false, mvpMatrix);
+        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+        gl.uniform1i(uniLocation[4], true);
+        gl.drawElements(gl.TRIANGLES, earthData.i.length, gl.UNSIGNED_SHORT, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.clearColor(0.0, 0.7, 0.7, 1.0);
+        gl.clearDepth(1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        set_attribute(cVBOList, attLocation, attStride);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cIndex);
+        gl.bindTexture(gl.TEXTURE_2D, fBuffer.t);
+        lightDirection = [-1.0, 0.0, 0.0];
+        m.lookAt([0.0, 0.0, 5.0], [0, 0, 0], [0, 1, 0], vMatrix);
+        m.perspective(45, c.width / c.height, 0.1, 100, pMatrix);
+        m.multiply(pMatrix, vMatrix, tmpMatrix);
+        m.identity(mMatrix);
+        m.rotate(mMatrix, rad2, [1, 1, 0], mMatrix);
+        m.multiply(tmpMatrix, mMatrix, mvpMatrix);
+        m.inverse(mMatrix, invMatrix);
+        gl.uniformMatrix4fv(uniLocation[0], false, mMatrix);
+        gl.uniformMatrix4fv(uniLocation[1], false, mvpMatrix);
+        gl.uniformMatrix4fv(uniLocation[2], false, invMatrix);
+        gl.drawElements(gl.TRIANGLES, cubeData.i.length, gl.UNSIGNED_SHORT, 0);
         gl.flush();
         setTimeout(arguments.callee, 1000 / 30);
     })();
@@ -219,16 +175,47 @@ onload = function () {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         return ibo;
     }
-    function create_texture(source) {
+    function create_texture(source, number) {
         var img = new Image();
         img.onload = function () {
             var tex = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, tex);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
             gl.generateMipmap(gl.TEXTURE_2D);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+            switch (number) {
+                case 0:
+                    texture0 = tex;
+                    break;
+                case 1:
+                    texture1 = tex;
+                    break;
+                default:
+                    break;
+            }
             gl.bindTexture(gl.TEXTURE_2D, null);
-            texture = tex;
         };
         img.src = source;
+    }
+    function create_framebuffer(width, height) {
+        var frameBuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+        var depthRenderBuffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depthRenderBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthRenderBuffer);
+        var fTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, fTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fTexture, 0);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return { f: frameBuffer, d: depthRenderBuffer, t: fTexture };
     }
 };
