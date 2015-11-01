@@ -1,15 +1,35 @@
+var c;
+var q = new qtnIV();
+var qt = q.identity(q.create());
+
+function mouseMove(e){
+  var cw = c.width;
+  var ch = c.height;
+  var wh = 1 / Math.sqrt(cw * cw + ch * ch);
+  var x = e.clientX - c.offsetLeft - cw * 0.5;
+  var y = e.clientY - c.offsetTop - ch * 0.5;
+  var sq = Math.sqrt(x * x + y * y);
+  var r = sq * 2.0 * Math.PI * wh;
+  if(sq != 1){
+    sq = 1 / sq;
+    x *= sq;
+    y *= sq;
+  }
+  q.rotate(r,[y,x,0.0],qt);
+}
+
 onload = function(){
 
     // canvasを設定
-    var c = document.getElementById('canvas');
+    c = document.getElementById('canvas');
 
-    c.width = 256;
-    c.height = 256;
+    c.width = 500;
+    c.height = 300;
+
+    c.addEventListener('mousemove',mouseMove,true);
 
     // webglコンテキストを取得
     var gl = c.getContext('webgl' || c.getContext('experimental-webgl'));
-
-    var eBlur = document.getElementById('blur');
 
     // 頂点シェーダとフラグメントシェーダの生成
     var v_shader = create_shader('vs');
@@ -33,13 +53,15 @@ onload = function(){
     attStride[3] = 2;
 
     // スフィア
-    var earthData = sphere(64,64,1.0,[1.0,1.0,1.0,1.0]);
-    var ePosition = create_vbo(earthData.p);
-    var eNormal = create_vbo(earthData.n);
-    var eColor = create_vbo(earthData.c);
-    var eTextureCoord = create_vbo(earthData.t);
-    var eVBOList = [ePosition,eNormal,eColor,eTextureCoord];
-    var eIndex = create_ibo(earthData.i);
+    var sphereData = sphere(64,64,1.0);
+    var sPosition = create_vbo(sphereData.p);
+    var sNormal = create_vbo(sphereData.n);
+    var sColor = create_vbo(sphereData.c);
+    var sTextureCoord = create_vbo(sphereData.t);
+    var sVBOList = [sPosition,sNormal,sColor,sTextureCoord];
+    var sIndex = create_ibo(sphereData.i);
+    set_attribute(sVBOList,attLocation,attStride);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,sIndex);
 
 
     // uniformLocationを配列に取得
@@ -47,62 +69,9 @@ onload = function(){
     uniLocation[0] = gl.getUniformLocation(prg,'mMatrix');
     uniLocation[1] = gl.getUniformLocation(prg,'mvpMatrix');
     uniLocation[2] = gl.getUniformLocation(prg,'invMatrix');
-    uniLocation[3] = gl.getUniformLocation(prg,'lightDirection');
-    uniLocation[4] = gl.getUniformLocation(prg,'useLight');
+    uniLocation[3] = gl.getUniformLocation(prg,'lightPosition');
+    uniLocation[4] = gl.getUniformLocation(prg,'eyePosition');
     uniLocation[5] = gl.getUniformLocation(prg,'texture');
-
-    // ブラーシェーダ
-
-    //頂点シェーダ
-    v_shader = create_shader('bvs');
-    f_shader = create_shader('bfs');
-    var bPrg = create_program(v_shader,f_shader);
-
-    // attributeLocationを配列に取得
-    var bAttLocation = new Array();
-    bAttLocation[0] = gl.getAttribLocation(bPrg,'position');
-    bAttLocation[1] = gl.getAttribLocation(bPrg,'color');
-
-    // attributeの要素数を配列に格納
-    var bAttStride = new Array();
-    bAttStride[0] = 3;
-    bAttStride[1] = 4;
-
-    // 頂点の位置
-    var position = [
-      -1.0, 1.0, 0.0,
-       1.0, 1.0, 0.0,
-      -1.0,-1.0, 0.0,
-       1.0,-1.0, 0.0
-    ];
-
-    // 頂点色
-    var color = [
-      1.0, 1.0, 1.0, 1.0,
-      1.0, 1.0, 1.0, 1.0,
-      1.0, 1.0, 1.0, 1.0,
-      1.0, 1.0, 1.0, 1.0
-    ];
-
-    // 頂点インデックス
-    var index = [
-      0,1,2,
-      3,2,1
-    ];
-
-    // VBOとIBOの生成
-    var vPosition = create_vbo(position);
-    var vColor = create_vbo(color);
-    var vVBOList = [vPosition,vColor];
-    var vIndex = create_ibo(index);
-
-    // uniformLocationを配列に取得
-    var bUniLocation = new Array();
-    bUniLocation[0] = gl.getUniformLocation(bPrg,'mvpMatrix');
-    bUniLocation[1] = gl.getUniformLocation(bPrg,'texture');
-    bUniLocation[2] = gl.getUniformLocation(bPrg,'useBlur');
-
-    // ブラーフィルター終了
 
     //カリング
     //gl.enable(gl.CULL_FACE);
@@ -123,88 +92,43 @@ onload = function(){
   	gl.depthFunc(gl.LEQUAL);
 
     // テクスチャの用意
-    var texture0 = null;
-    var texture1 = null;
-    create_texture('../images/texture.png',0);
-    create_texture('../images/texture1.png',1);
+    var texture = null;
+    create_texture('../images/texture.png');
     gl.activeTexture(gl.TEXTURE0);
 
-    var fBufferWidth = 256;
-    var fBufferHeight = 256;
-    var fBuffer = create_framebuffer(fBufferWidth,fBufferHeight);
+    var lightPosition = [-10.0,10.0,10.0];
+
+    var eyePosition = [0.0,0.0,5.0];
 
     // 恒常ループ
     (() => {
         count++;
+
         var rad = (count % 360) * Math.PI / 180;
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER,fBuffer.f);
-
-        // canvasを初期化
-        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearColor(0.0,0.0,0.0,1.0);
         gl.clearDepth(1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        gl.useProgram(prg);
-
-        set_attribute(eVBOList,attLocation,attStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,eIndex);
-
-        var lightDirection = [-1.0,2.0,1.0];
-
-        m.lookAt([0.0,0.0,5.0],[0,0,0],[0,1,0],vMatrix);
-        m.perspective(45,fBufferWidth / fBufferHeight,0.1,100,pMatrix);
+        var camUp = new Array();
+        q.toVecIII([0.0,0.0,5.0],qt,eyePosition);
+        q.toVecIII([0.0,1.0,0.0],qt,camUp);
+        m.lookAt(eyePosition,[0,0,0],camUp,vMatrix);
+        m.perspective(45,c.width / c.height,0.1,100,pMatrix);
         m.multiply(pMatrix,vMatrix,tmpMatrix);
 
-        gl.bindTexture(gl.TEXTURE_2D,texture1);
+        gl.bindTexture(gl.TEXTURE_2D,texture);
         m.identity(mMatrix);
-        m.scale(mMatrix,[50.0,50.0,50.0],mMatrix);
+        m.rotate(mMatrix,-rad,[0,1,0],mMatrix);
         m.multiply(tmpMatrix,mMatrix,mvpMatrix);
         m.inverse(mMatrix,invMatrix);
         gl.uniformMatrix4fv(uniLocation[0],false,mMatrix);
         gl.uniformMatrix4fv(uniLocation[1],false,mvpMatrix);
         gl.uniformMatrix4fv(uniLocation[2],false,invMatrix);
-        gl.uniform3fv(uniLocation[3],lightDirection);
-        gl.uniform1i(uniLocation[4],false);
+        gl.uniform3fv(uniLocation[3],lightPosition);
+        gl.uniform3fv(uniLocation[4],eyePosition);
         gl.uniform1i(uniLocation[5],0);
-        gl.drawElements(gl.TRIANGLES,earthData.i.length,gl.UNSIGNED_SHORT,0);
-
-        gl.bindTexture(gl.TEXTURE_2D,texture0);
-        m.identity(mMatrix);
-        m.rotate(mMatrix,rad,[0,1,0],mMatrix);
-        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
-        m.inverse(mMatrix,invMatrix);
-        gl.uniformMatrix4fv(uniLocation[0],false,mMatrix);
-        gl.uniformMatrix4fv(uniLocation[1],false,mvpMatrix);
-        gl.uniformMatrix4fv(uniLocation[2],false,invMatrix);
-        gl.uniform1i(uniLocation[4],true);
-        gl.drawElements(gl.TRIANGLES,earthData.i.length,gl.UNSIGNED_SHORT,0);
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-
-        gl.clearColor(0.0,0.5,0.5,1.0);
-        gl.clearDepth(1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        gl.useProgram(bPrg);
-
-        var useBlur = eBlur.checked;
-
-        set_attribute(vVBOList,bAttLocation,bAttStride);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,vIndex);
-
-        gl.bindTexture(gl.TEXTURE_2D,fBuffer.t);
-
-        m.lookAt([0.0,0.0,0.5],[0.0,0.0,0.0],[0,1,0],vMatrix);
-        m.ortho(-1.0,1.0,1.0,-1.0,0.1,1,pMatrix);
-        m.multiply(pMatrix,vMatrix,tmpMatrix);
-
-        m.identity(mMatrix);
-        m.multiply(tmpMatrix,mMatrix,mvpMatrix);
-        gl.uniformMatrix4fv(bUniLocation[0],false,mvpMatrix);
-        gl.uniform1i(bUniLocation[1],0);
-        gl.uniform1i(bUniLocation[2],useBlur);
-        gl.drawElements(gl.TRIANGLES,index.length,gl.UNSIGNED_SHORT,0);
+        gl.drawElements(gl.TRIANGLES,sphereData.i.length,gl.UNSIGNED_SHORT,0);
 
         // コンテキストの再描画
         gl.flush();
@@ -336,7 +260,7 @@ onload = function(){
         return ibo;
     }
 
-    function create_texture(source,number){
+    function create_texture(source){
       var img = new Image();
 
       img.onload = function(){
@@ -348,20 +272,12 @@ onload = function(){
 
         gl.generateMipmap(gl.TEXTURE_2D);
 
-        switch(number){
-          case 0:
-            texture0 = tex;
-            break;
-          case 1:
-            texture1 = tex;
-            break;
-          default:
-            break;
+        texture = tex;
         }
 
         gl.bindTexture(gl.TEXTURE_2D,null);
 
-      }
+
       img.src = source;
     }
 
